@@ -1,0 +1,13 @@
+name: ChainedTogether
+version: '1.0-SNAPSHOT'
+main: net.zenithexe.chainedtogether.ChainedTogether
+api-version: '1.21'
+authors: [ zenithexe ]
+softdepend: [ ProtocolLib ]
+description: Chain players together in Minecraft
+website: https://github.com/zenithexe/ChainedTogether
+
+commands:
+  chain:
+    aliases:
+      - chainedtogether
