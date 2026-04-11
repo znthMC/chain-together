@@ -1,6 +1,6 @@
 name: ChainedTogether
 version: '1.0-SNAPSHOT'
-main: net.zenithexe.chainedtogether.ChainedTogether
+main: com.zncraft.chainedtogether.ChainedTogether
 api-version: '1.21'
 authors: [ zenithexe ]
 softdepend: [ ProtocolLib ]
