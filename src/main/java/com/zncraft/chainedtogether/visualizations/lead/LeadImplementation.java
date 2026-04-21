@@ -10,19 +10,13 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.event.HandlerList;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
 import com.comphenix.protocol.PacketType;
-import com.comphenix.protocol.events.ListenerPriority;
-import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketContainer;
-import com.comphenix.protocol.events.PacketEvent;
-import com.comphenix.protocol.events.PacketListener;
 
 import com.zncraft.chainedtogether.ChainedTogether;
 import com.zncraft.chainedtogether.visualizations.ChainVisualization;
@@ -31,13 +25,14 @@ import com.zncraft.chainedtogether.visualizations.lead.harness.Carabiner;
 
 public class LeadImplementation extends ChainVisualization {
 
-    // The scoreboard team is essential, so that the carabiner doesn't collide with the player
+    private static final double OFFSET_DISTANCE = 0.3;
+    private static final double OFFSET_Y = 0.8;
     private static final String TEAM_NAME = "_CARABINER_NO_COLLISION_";
-    
+
     private final ChainedTogether chainedTogether = ChainedTogether.getInstance();
     private final Map<UUID, Anchor> belts = new HashMap<>();
     private List<UUID> activePlayers = new ArrayList<>();
-    private PacketListener packetListener;
+    private ViewerListener viewerListener;
 
     @Override
     public void init(List<UUID> activePlayers) {
@@ -47,45 +42,37 @@ public class LeadImplementation extends ChainVisualization {
         for (UUID uuid : activePlayers) {
             Player player = Bukkit.getPlayer(uuid);
             if (player == null) continue;
-            belts.put(uuid, createAnchor(player));
+            belts.put(uuid, createAnchor());
         }
 
-        List<RuleBoundPacket> structure = structure();
-        Bukkit.getOnlinePlayers().forEach(p -> structure.forEach(pkt -> send(pkt, p)));
+        // Send spawn + metadata + attach packets to all online players
+        for (Player viewer : Bukkit.getOnlinePlayers()) {
+            sendFullState(viewer);
+        }
 
-        packetListener = new PacketAdapter(chainedTogether, ListenerPriority.NORMAL, PacketType.Play.Server.SPAWN_ENTITY) {
-            @Override
-            public void onPacketSending(PacketEvent event) {
-                UUID uuid = event.getPacket().getUUIDs().read(0);
-                Entity entity = Bukkit.getEntity(uuid);
-                if (entity != null && entity.getType().equals(EntityType.RABBIT)
-                        && "chainedcarabiner".equals(entity.getCustomName())) {
-                    refreshPackets(event.getPlayer());
-                }
-            }
-        };
-        chainedTogether.getProtocolManager().addPacketListener(packetListener);
+        // Register viewer listener for join/respawn/world change
+        viewerListener = new ViewerListener(this);
+        Bukkit.getPluginManager().registerEvents(viewerListener, chainedTogether);
     }
 
     @Override
     public void tick() {
         for (Map.Entry<UUID, Anchor> entry : belts.entrySet()) {
-            
             Player player = Bukkit.getPlayer(entry.getKey());
-
             if (player == null) continue;
-            
-            //This is to abvoid collision of the player with the carabiner.
+
             syncCarabinerNoCollisionTeam(player, entry.getValue());
-            
+
             double yawRad = Math.toRadians(player.getLocation().getYaw() + 180);
-            
+            double x = player.getLocation().getX() + (-Math.sin(yawRad) * OFFSET_DISTANCE);
+            double y = player.getLocation().getY() + OFFSET_Y;
+            double z = player.getLocation().getZ() + (Math.cos(yawRad) * OFFSET_DISTANCE);
+
             for (Carabiner carabiner : entry.getValue().getCarabiners()) {
-                carabiner.getCarabiner().teleport(
-                        player.getLocation().clone().add(
-                                -Math.sin(yawRad) * 0.3, 0.8, Math.cos(yawRad) * 0.3
-                        )
-                );
+                PacketContainer teleportPacket = carabiner.createTeleportPacket(x, y, z);
+                for (Player viewer : Bukkit.getOnlinePlayers()) {
+                    sendPacket(teleportPacket, viewer);
+                }
             }
         }
     }
@@ -100,7 +87,7 @@ public class LeadImplementation extends ChainVisualization {
         }
 
         for (Carabiner carabiner : anchor.getCarabiners()) {
-            String entry = carabiner.getCarabiner().getUniqueId().toString();
+            String entry = carabiner.getEntityUuid().toString();
             if (!team.hasEntry(entry)) {
                 team.addEntry(entry);
             }
@@ -109,13 +96,29 @@ public class LeadImplementation extends ChainVisualization {
 
     @Override
     public void destroy() {
-        if (packetListener != null) {
-            chainedTogether.getProtocolManager().removePacketListener(packetListener);
-            packetListener = null;
+        // Unregister viewer listener
+        if (viewerListener != null) {
+            HandlerList.unregisterAll(viewerListener);
+            viewerListener = null;
         }
+
+        // Clean up team entries and send destroy packets
+        List<Integer> allIds = new ArrayList<>();
         for (Anchor anchor : belts.values()) {
-            anchor.getCarabiners().forEach(Carabiner::nuke);
+            for (Carabiner carabiner : anchor.getCarabiners()) {
+                carabiner.removeFromTeam();
+                allIds.add(carabiner.getEntityId());
+            }
         }
+
+        if (!allIds.isEmpty()) {
+            PacketContainer destroyPacket = new PacketContainer(PacketType.Play.Server.ENTITY_DESTROY);
+            destroyPacket.getIntLists().write(0, allIds);
+            for (Player viewer : Bukkit.getOnlinePlayers()) {
+                sendPacket(destroyPacket, viewer);
+            }
+        }
+
         belts.clear();
     }
 
@@ -123,46 +126,68 @@ public class LeadImplementation extends ChainVisualization {
     public void rebuild(List<UUID> newActivePlayers) {
         Set<UUID> newActiveSet = new HashSet<>(newActivePlayers);
 
-        // Remove anchors for players no longer active
+        // Destroy virtual entities for players no longer active
         Iterator<Map.Entry<UUID, Anchor>> it = belts.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<UUID, Anchor> entry = it.next();
             if (!newActiveSet.contains(entry.getKey())) {
-                entry.getValue().getCarabiners().forEach(Carabiner::nuke);
+                for (Carabiner carabiner : entry.getValue().getCarabiners()) {
+                    carabiner.removeFromTeam();
+                    PacketContainer destroyPacket = carabiner.createDestroyPacket();
+                    for (Player viewer : Bukkit.getOnlinePlayers()) {
+                        sendPacket(destroyPacket, viewer);
+                    }
+                }
                 it.remove();
             }
         }
 
-        // Add anchors for newly active players
+        // Create virtual entities for newly active players
         for (UUID uuid : newActivePlayers) {
             if (!belts.containsKey(uuid)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player == null) continue;
-                belts.put(uuid, createAnchor(player));
+                belts.put(uuid, createAnchor());
             }
         }
 
         this.activePlayers = newActivePlayers;
-        List<RuleBoundPacket> structure = structure();
-        Bukkit.getOnlinePlayers().forEach(p -> structure.forEach(pkt -> send(pkt, p)));
+
+        // Resend full state to all viewers
+        for (Player viewer : Bukkit.getOnlinePlayers()) {
+            sendFullState(viewer);
+        }
     }
 
-    private void refreshPackets(Player player) {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                structure().forEach(pkt -> send(pkt, player));
+    void sendFullState(Player player) {
+        // Send spawn + metadata for all carabiners
+        for (Map.Entry<UUID, Anchor> entry : belts.entrySet()) {
+            Player owner = Bukkit.getPlayer(entry.getKey());
+            if (owner == null) continue;
+
+            double yawRad = Math.toRadians(owner.getLocation().getYaw() + 180);
+            double x = owner.getLocation().getX() + (-Math.sin(yawRad) * OFFSET_DISTANCE);
+            double y = owner.getLocation().getY() + OFFSET_Y;
+            double z = owner.getLocation().getZ() + (Math.cos(yawRad) * OFFSET_DISTANCE);
+
+            for (Carabiner carabiner : entry.getValue().getCarabiners()) {
+                sendPacket(carabiner.createSpawnPacket(x, y, z), player);
+                sendPacket(carabiner.createMetadataPacket(), player);
+                sendPacket(carabiner.createTeleportPacket(x, y, z), player);
             }
-        }.runTaskLater(chainedTogether, 1);
+        }
+
+        // Send all attach packets
+        structure().forEach(pkt -> send(pkt, player));
     }
 
-    private Anchor createAnchor(Player player) {
-        return new Anchor(new Carabiner(player.getLocation()), new Carabiner(player.getLocation()));
+    private Anchor createAnchor() {
+        return new Anchor(new Carabiner(), new Carabiner());
     }
 
-    private PacketContainer attach(Entity attached, Entity holder) {
+    private PacketContainer attach(int attachedId, int holderId) {
         PacketContainer packet = new PacketContainer(PacketType.Play.Server.ATTACH_ENTITY);
-        packet.getIntegers().write(0, attached.getEntityId()).write(1, holder.getEntityId());
+        packet.getIntegers().write(0, attachedId).write(1, holderId);
         return packet;
     }
 
@@ -179,8 +204,8 @@ public class LeadImplementation extends ChainVisualization {
             Player playerB = Bukkit.getPlayer(uuidB);
             if (anchorA == null || anchorB == null || playerA == null || playerB == null) continue;
 
-            packets.add(new RuleBoundPacket(attach(anchorB.getCarabiner(0), playerA), RuleBoundPacket.PacketRule.EXEMPTED, playerB));
-            packets.add(new RuleBoundPacket(attach(anchorA.getCarabiner(1), playerB), RuleBoundPacket.PacketRule.PERSONAL, playerB));
+            packets.add(new RuleBoundPacket(attach(anchorB.getCarabiner(0).getEntityId(), playerA.getEntityId()), RuleBoundPacket.PacketRule.EXEMPTED, playerB));
+            packets.add(new RuleBoundPacket(attach(anchorA.getCarabiner(1).getEntityId(), playerB.getEntityId()), RuleBoundPacket.PacketRule.PERSONAL, playerB));
         }
         return packets;
     }

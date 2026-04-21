@@ -1,7 +1,5 @@
 package com.zncraft.chainedtogether.visualizations.lead.harness;
 
-import org.bukkit.entity.Entity;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,8 +11,8 @@ public class Anchor {
         this.carabiners = new ArrayList<>(List.of(carabiners));
     }
 
-    public Entity getCarabiner(int slot) {
-        return carabiners.get(slot).getCarabiner();
+    public Carabiner getCarabiner(int slot) {
+        return carabiners.get(slot);
     }
 
     public ArrayList<Carabiner> getCarabiners() {
