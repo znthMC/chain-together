@@ -193,11 +193,8 @@ public class Chain {
     }
 
     private void applyForce(Player player, Vector force) {
-        if (player.isInsideVehicle() && player.getVehicle() != null) {
-            player.getVehicle().setVelocity(player.getVehicle().getVelocity().clone().add(force));
-        } else {
-            player.setVelocity(player.getVelocity().clone().add(force));
-        }
+        if (player.isInsideVehicle()) return;
+        player.setVelocity(player.getVelocity().clone().add(force));
     }
 
     private void nuke() {

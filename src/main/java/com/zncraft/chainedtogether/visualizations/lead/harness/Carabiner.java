@@ -27,7 +27,7 @@ public class Carabiner {
         rabbit.setAgeLock(true);
         rabbit.setPersistent(false);
         rabbit.setCollidable(false);
-        rabbit.setCustomName("chainedtogetheraeaeaeae");
+        rabbit.setCustomName("chainedcarabiner");
         getOrCreateTeam().addEntry(rabbit.getUniqueId().toString());
         this.carabiner = rabbit;
     }

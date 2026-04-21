@@ -58,7 +58,8 @@ public class LeadImplementation extends ChainVisualization {
             public void onPacketSending(PacketEvent event) {
                 UUID uuid = event.getPacket().getUUIDs().read(0);
                 Entity entity = Bukkit.getEntity(uuid);
-                if (entity != null && entity.getType().equals(EntityType.RABBIT)) {
+                if (entity != null && entity.getType().equals(EntityType.RABBIT)
+                        && "chainedcarabiner".equals(entity.getCustomName())) {
                     refreshPackets(event.getPlayer());
                 }
             }
