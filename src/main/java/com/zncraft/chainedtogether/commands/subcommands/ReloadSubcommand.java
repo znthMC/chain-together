@@ -40,8 +40,5 @@ public class ReloadSubcommand implements Subcommand {
     public String getName() { return "reload"; }
 
     @Override
-    public String getPermission() { return "chainedtogether.reload"; }
-
-    @Override
     public String getDescription() { return "Reload the plugin configuration"; }
 }

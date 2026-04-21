@@ -64,8 +64,5 @@ public class CreateSubcommand implements Subcommand {
     public String getName() { return "create"; }
 
     @Override
-    public String getPermission() { return "chainedtogether.create"; }
-
-    @Override
     public String getDescription() { return "Chain players together"; }
 }

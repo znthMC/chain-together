@@ -42,8 +42,5 @@ public class LeaveSubcommand implements Subcommand {
     public String getName() { return "leave"; }
 
     @Override
-    public String getPermission() { return "chainedtogether.leave"; }
-
-    @Override
     public String getDescription() { return "Leave your current chain"; }
 }

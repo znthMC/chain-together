@@ -40,12 +40,6 @@ public class ChainCommand implements TabExecutor {
             return true;
         }
 
-        String permission = subcommand.getPermission();
-        if (permission != null && !sender.hasPermission(permission)) {
-            sender.sendMessage("You do not have permission to use this command!");
-            return true;
-        }
-
         String[] subArgs = new String[args.length - 1];
         System.arraycopy(args, 1, subArgs, 0, args.length - 1);
         return subcommand.execute(sender, subArgs);
@@ -56,11 +50,8 @@ public class ChainCommand implements TabExecutor {
         if (args.length == 1) {
             List<String> suggestions = new ArrayList<>();
             for (Map.Entry<String, Subcommand> entry : subcommands.entrySet()) {
-                String permission = entry.getValue().getPermission();
-                if (permission == null || sender.hasPermission(permission)) {
-                    if (entry.getKey().startsWith(args[0].toLowerCase())) {
-                        suggestions.add(entry.getKey());
-                    }
+                if (entry.getKey().startsWith(args[0].toLowerCase())) {
+                    suggestions.add(entry.getKey());
                 }
             }
             return suggestions;
