@@ -17,6 +17,8 @@ public class ChainCommand implements TabExecutor {
     public ChainCommand() {
         registerSubcommand(new CreateSubcommand());
         registerSubcommand(new LeaveSubcommand());
+        registerSubcommand(new BreakSubcommand());
+        registerSubcommand(new AddSubcommand());
         registerSubcommand(new ReloadSubcommand());
         registerSubcommand(new InfoSubcommand());
     }
@@ -28,7 +30,7 @@ public class ChainCommand implements TabExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length < 1) {
-            sender.sendMessage("Please specify a subcommand (create, leave, reload, info)");
+            sender.sendMessage("Please specify a subcommand (create, add, leave, break, reload, info)");
             return true;
         }
 
@@ -36,7 +38,7 @@ public class ChainCommand implements TabExecutor {
         Subcommand subcommand = subcommands.get(subcommandName);
 
         if (subcommand == null) {
-            sender.sendMessage("Unknown subcommand. Use create, leave, reload, or info.");
+            sender.sendMessage("Unknown subcommand. Use create, add, leave, break, reload, or info.");
             return true;
         }
 

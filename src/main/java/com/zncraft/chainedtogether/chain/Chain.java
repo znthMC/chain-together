@@ -111,6 +111,16 @@ public class Chain {
         Bukkit.getPluginManager().callEvent(event);
     }
 
+    public boolean add(Player player) {
+        if (originalOrder.contains(player.getUniqueId())) {
+            return false;
+        }
+        originalOrder.add(player.getUniqueId());
+        rebuildActive();
+        chainVisualization.rebuild(activePlayers);
+        return true;
+    }
+
     public boolean remove(Player player) {
         if (!originalOrder.contains(player.getUniqueId())) {
             return false;
