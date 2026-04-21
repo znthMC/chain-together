@@ -68,7 +68,7 @@ public class Carabiner {
         packet.getModifier().writeDefaults();
         packet.getIntegers().write(0, entityId);
         packet.getUUIDs().write(0, entityUuid);
-        packet.getEntityTypeModifier().write(0, EntityType.RABBIT);
+        packet.getEntityTypeModifier().write(0, EntityType.SILVERFISH);
         packet.getDoubles().write(0, x).write(1, y).write(2, z);
         // Set velocity Vec3 to zero (null causes NPE during packet encoding)
         packet.getModifier().withType(VEC3_CLASS).write(0, VEC3_ZERO);
