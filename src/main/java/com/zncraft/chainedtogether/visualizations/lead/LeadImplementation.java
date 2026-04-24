@@ -17,7 +17,6 @@ import org.bukkit.scoreboard.Team;
 
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.events.PacketContainer;
-
 import com.zncraft.chainedtogether.ChainedTogether;
 import com.zncraft.chainedtogether.visualizations.ChainVisualization;
 import com.zncraft.chainedtogether.visualizations.lead.harness.Anchor;
@@ -25,7 +24,7 @@ import com.zncraft.chainedtogether.visualizations.lead.harness.Carabiner;
 
 public class LeadImplementation extends ChainVisualization {
 
-    private static final double OFFSET_DISTANCE = 0;
+    private static final double OFFSET_DISTANCE = 0.3;
     private static final double OFFSET_Y = 0.8;
     private static final String TEAM_NAME = "_CARABINER_NO_COLLISION_";
 
